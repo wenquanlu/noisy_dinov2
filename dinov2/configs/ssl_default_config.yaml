@@ -65,7 +65,7 @@ train:
   saveckp_freq: 20
   seed: 0
   num_workers: 10
-  OFFICIAL_EPOCH_LENGTH: 10000
+  OFFICIAL_EPOCH_LENGTH: 1250
   cache_dataset: true
   centering: "centering" # or "sinkhorn_knopp"
 student:
@@ -90,7 +90,7 @@ teacher:
   teacher_temp: 0.07
   warmup_teacher_temp_epochs: 30
 optim:
-  epochs: 100
+  epochs: 800
   weight_decay: 0.04
   weight_decay_end: 0.4
   base_lr: 0.004  # learning rate for a batch size of 1024

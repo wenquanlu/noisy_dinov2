@@ -10,3 +10,5 @@ dist/
 imagenet-100/*
 .vscode/
 output/*
+noisy_imagenet-100/*
+history/*
