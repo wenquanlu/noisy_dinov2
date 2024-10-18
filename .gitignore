@@ -7,5 +7,6 @@ dist/
 **/.ipynb_checkpoints/**
 
 *.swp
-
+imagenet-100/*
 .vscode/
+output/*

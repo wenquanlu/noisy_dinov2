@@ -1,0 +1,7 @@
+You may notice that if you are using a single node, Dino will automatically revert to using normal data parallelism instead 
+of fully sharded. In this case, you may still get the local_state_dict error. You can also address this by using a full state 
+dict instead of local state in dinov2/fsdp/__init__.py, changing to 
+`with FSDP.state_dict_type(self.model, StateDictType.FULL_STATE_DICT):` instead of 
+`with FSDP.state_dict_type(self.model, StateDictType.LOCAL_STATE_DICT):`
+
+https://github.com/facebookresearch/dinov2/issues/273
