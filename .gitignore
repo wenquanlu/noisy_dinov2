@@ -12,3 +12,4 @@ imagenet-100/*
 output/*
 noisy_imagenet-100/*
 history/*
+imagenet-100-extra/*
