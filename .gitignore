@@ -13,3 +13,6 @@ output/*
 noisy_imagenet-100/*
 history/*
 imagenet-100-extra/*
+mini-imagenet/*
+noisy_mini-imagenet/*
+mini-imagenet-extra/*
