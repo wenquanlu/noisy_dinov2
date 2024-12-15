@@ -22,7 +22,10 @@ noisy_mini-imagenet-gauss255-extra/*
 noisy_mini-imagenet*/*
 output_*/*
 output_*/**
-*.png
+./*.png
+/*.png
+accuracy_comparison.png
+
 test_scripts/
 old_utils/
 calculate_snr.py
