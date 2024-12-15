@@ -44,4 +44,5 @@ Evaluate DINOv2, make sure you are at outer directory
 python generate_instance_recog_script.py
 sh instance_recog.sh
 ```
-
+## Comments
+Our codebase builds heavily on [DINOv2](https://github.com/facebookresearch/dinov2) and [Neighbor2Neighbor](https://github.com/TaoHuang2018/Neighbor2Neighbor).
