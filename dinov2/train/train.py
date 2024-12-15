@@ -21,6 +21,7 @@ from dinov2.utils.config import setup
 from dinov2.utils.utils import CosineScheduler
 
 from dinov2.train.ssl_meta_arch import SSLMetaArch
+from dinov2.data.datasets.image_net import _Split
 
 
 torch.backends.cuda.matmul.allow_tf32 = True  # PyTorch 1.12 sets this to False by default
@@ -31,7 +32,7 @@ def get_args_parser(add_help: bool = True):
     parser = argparse.ArgumentParser("DINOv2 training", add_help=add_help)
     parser.add_argument("--config-file", default="", metavar="FILE", help="path to config file")
     parser.add_argument(
-        "--no-resume",
+        "--resume",
         action="store_true",
         help="Whether to not attempt to resume from the checkpoint directory. ",
     )
@@ -54,6 +55,22 @@ For python-based LazyConfig, use "path.key=value".
         type=str,
         help="Output directory to save logs and checkpoints",
     )
+    parser.add_argument(
+        "--img_format",
+        type=str,
+        default=".png"
+    )
+    parser.add_argument(
+        "--max_to_keep",
+        type=int,
+        default=3
+    )
+
+    parser.add_argument(
+        "--save_frequency",
+        type=int,
+        default=3
+    )    
 
     return parser
 
@@ -131,7 +148,7 @@ def do_test(cfg, model, iteration):
         torch.save({"teacher": new_state_dict}, teacher_ckp_path)
 
 
-def do_train(cfg, model, resume=False):
+def do_train(cfg, model, resume=False, max_to_keep=3, save_frequency=3):
     model.train()
     inputs_dtype = torch.half
     fp16_scaler = model.fp16_scaler  # for mixed precision training
@@ -150,16 +167,21 @@ def do_train(cfg, model, resume=False):
     # checkpointer
     checkpointer = FSDPCheckpointer(model, cfg.train.output_dir, optimizer=optimizer, save_to_disk=True)
 
-    start_iter = checkpointer.resume_or_load(cfg.MODEL.WEIGHTS, resume=resume).get("iteration", -1) + 1
+    if resume:
+        start_iter = checkpointer.resume_or_load(cfg.MODEL.WEIGHTS, resume=resume).get("iteration", -1) + 1
+    else:
+        start_iter = 0
 
     OFFICIAL_EPOCH_LENGTH = cfg.train.OFFICIAL_EPOCH_LENGTH
     max_iter = cfg.optim.epochs * OFFICIAL_EPOCH_LENGTH
 
     periodic_checkpointer = PeriodicCheckpointer(
         checkpointer,
-        period=3 * OFFICIAL_EPOCH_LENGTH,
+        #period=5 * OFFICIAL_EPOCH_LENGTH,
+        period=save_frequency * OFFICIAL_EPOCH_LENGTH,
         max_iter=max_iter,
-        max_to_keep=3,
+        max_to_keep=max_to_keep,
+        #max_to_keep=45,
     )
 
     # setup data preprocessing
@@ -196,6 +218,7 @@ def do_train(cfg, model, resume=False):
         transform=data_transform,
         target_transform=lambda _: (),
     )
+    #dataset.set_epoch(0)
     # sampler_type = SamplerType.INFINITE
     sampler_type = SamplerType.SHARDED_INFINITE
     data_loader = make_data_loader(
@@ -218,7 +241,7 @@ def do_train(cfg, model, resume=False):
     metrics_file = os.path.join(cfg.train.output_dir, "training_metrics.json")
     metric_logger = MetricLogger(delimiter="  ", output_file=metrics_file)
     header = "Training"
-
+    #n_iter = 0
     for data in metric_logger.log_every(
         data_loader,
         10,
@@ -290,6 +313,8 @@ def do_train(cfg, model, resume=False):
         periodic_checkpointer.step(iteration)
 
         iteration = iteration + 1
+        #n_iter += 1
+        #dataset.set_epoch(n_iter // OFFICIAL_EPOCH_LENGTH)
     metric_logger.synchronize_between_processes()
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
@@ -299,18 +324,19 @@ def main(args):
 
     model = SSLMetaArch(cfg).to(torch.device("cuda"))
     model.prepare_for_distributed_training()
+    _Split.img_format = args.img_format
 
     logger.info("Model:\n{}".format(model))
     if args.eval_only:
         iteration = (
             FSDPCheckpointer(model, save_dir=cfg.train.output_dir)
-            .resume_or_load(cfg.MODEL.WEIGHTS, resume=not args.no_resume)
+            .resume_or_load(cfg.MODEL.WEIGHTS, resume=args.resume)
             .get("iteration", -1)
             + 1
         )
         return do_test(cfg, model, f"manual_{iteration}")
 
-    do_train(cfg, model, resume=not args.no_resume)
+    do_train(cfg, model, resume=args.resume, max_to_keep=args.max_to_keep, save_frequency=args.save_frequency)
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ from enum import Enum
 import logging
 import os
 from typing import Callable, List, Optional, Tuple, Union
-
+import random
 import numpy as np
 
 from .extended import ExtendedVisionDataset
@@ -41,7 +41,7 @@ class _Split(Enum):
             basename = f"{class_id}_{actual_index}"
         else:  # self in (_Split.VAL, _Split.TEST):
             basename = f"ILSVRC2012_{self.value}_{actual_index:08d}"
-        return os.path.join(dirname, basename + ".JPEG")
+        return os.path.join(dirname, basename + self.img_format)
 
     def parse_image_relpath(self, image_relpath: str) -> Tuple[str, int]:
         assert self != _Split.TEST
@@ -73,6 +73,21 @@ class ImageNet(ExtendedVisionDataset):
         self._entries = None
         self._class_ids = None
         self._class_names = None
+        # self.curriculum = {}
+        # for i in range(200):
+        #     if i < 20:
+        #         self.curriculum[i] = 0
+        #     elif i >= 20 and i < 30:
+        #         self.curriculum[i] = 0.2
+        #     elif i >= 30 and i < 40:
+        #         self.curriculum[i] = 0.4
+        #     elif i >= 40 and i < 50:
+        #         self.curriculum[i] = 0.6
+        #     elif i >= 50 and i < 60:
+        #         self.curriculum[i] = 0.8
+        #     elif i >= 60:
+        #         self.curriculum[i] = 1.0
+
 
     @property
     def split(self) -> "ImageNet.Split":
@@ -89,6 +104,9 @@ class ImageNet(ExtendedVisionDataset):
         extra_full_path = self._get_extra_full_path(extra_path)
         os.makedirs(self._extra_root, exist_ok=True)
         np.save(extra_full_path, extra_array)
+    
+    #def set_epoch(self, epoch):
+    #    self.epoch_number = epoch 
 
     @property
     def _entries_path(self) -> str:
@@ -138,8 +156,12 @@ class ImageNet(ExtendedVisionDataset):
 
         class_id = self.get_class_id(index)
 
+        #draw = random.random()
         image_relpath = self.split.get_image_relpath(actual_index, class_id)
+        #if draw < self.curriculum[self.epoch_number]:
         image_full_path = os.path.join(self.root, image_relpath)
+        #else:
+        #    image_full_path = os.path.join("noisy_mini-imagenet-gauss100-denoised", image_relpath)
         with open(image_full_path, mode="rb") as f:
             image_data = f.read()
         return image_data

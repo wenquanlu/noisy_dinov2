@@ -25,7 +25,7 @@ from dinov2.eval.setup import get_args_parser as get_setup_args_parser
 from dinov2.eval.setup import setup_and_build_model
 from dinov2.eval.utils import ModelWithIntermediateLayers, evaluate
 from dinov2.logging import MetricLogger
-
+from dinov2.data.datasets.image_net import _Split
 
 logger = logging.getLogger("dinov2")
 
@@ -131,6 +131,11 @@ def get_args_parser(
         nargs="+",
         type=str,
         help="Path to a file containing a mapping to adjust classifier outputs",
+    )
+    parser.add_argument(
+        "--img_format",
+        type=str,
+        default=".png"
     )
     parser.set_defaults(
         train_dataset_str="ImageNet:split=TRAIN",
@@ -416,7 +421,7 @@ def make_eval_data_loader(test_dataset_str, batch_size, num_workers, metric_type
     test_data_loader = make_data_loader(
         dataset=test_dataset,
         batch_size=batch_size,
-        num_workers=num_workers,
+        num_workers=0,
         sampler_type=SamplerType.DISTRIBUTED,
         drop_last=False,
         shuffle=False,
@@ -594,6 +599,8 @@ def run_eval_linear(
 
 def main(args):
     model, autocast_dtype = setup_and_build_model(args)
+    _Split.img_format = args.img_format
+    print("num_workers:", args.num_workers)
     run_eval_linear(
         model=model,
         output_dir=args.output_dir,

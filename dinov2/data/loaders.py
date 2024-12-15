@@ -161,7 +161,11 @@ def _make_sampler(
 
 
 T = TypeVar("T")
-
+def worker_init_fn(worker_id):
+    try:
+        print(f"Worker {worker_id} initialized")
+    except Exception as e:
+        print(f"Error during worker initialization: {e}")
 
 def make_data_loader(
     *,
@@ -213,6 +217,7 @@ def make_data_loader(
         drop_last=drop_last,
         persistent_workers=persistent_workers,
         collate_fn=collate_fn,
+        worker_init_fn=worker_init_fn,
     )
 
     try:

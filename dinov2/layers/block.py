@@ -34,9 +34,9 @@ try:
     else:
         warnings.warn("xFormers is disabled (Block)")
         raise ImportError
-except ImportError:
+except ImportError as e:
     XFORMERS_AVAILABLE = False
-
+    warnings.warn(str(e))
     warnings.warn("xFormers is not available (Block)")
 
 
