@@ -3,7 +3,7 @@
 In this work, we present a fully self-supervised framework designed to enable DINOv2 to learn noise-robust representations from only noisy image data. The proposed method first trains a self-supervised denoiser to bootstrap a denoised dataset from the noisy dataset. We then train DINOv2 on the denoised images, followed by resetting the training dynamics and restarting the training on the original noisy images. This curriculum approach substantially improves classification and instance recognition performance of DINOv2 compared to training solely on noisy images. Remarkably, the performance closely matches or even surpasses that of models trained exclusively on denoised images. By enabling DINOv2 to adapt independently to noise, our method introduces an effective paradigm for self-supervised learning with noisy data.
 
 <figure>
-<img src="img/noisy_arch.png">
+<img src="img/arch.png">
 </figure>
 
 ## Get Started
