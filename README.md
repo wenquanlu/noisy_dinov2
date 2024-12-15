@@ -25,6 +25,7 @@ sh linear_probe_n2n.sh
 Train and Evaluate DINOv2, make sure you are at outer directory
 ```shell
 mv Neighbor2Neighbor/noisy_mini-imagenet* .
+python process_metadata.py
 sh linear_probe.sh
 ```
 

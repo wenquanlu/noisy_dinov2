@@ -77,7 +77,9 @@ generated_ic_script.sh
 
 restart.sh
 
-
+graphs
+shot*_extra_data.pkl
+draw/inspect_pickle.py
 
 
 
