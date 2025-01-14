@@ -5,3 +5,4 @@
 
 from .gradientloss import GradientLoss
 from .sigloss import SigLoss
+from .mseloss import MSELoss

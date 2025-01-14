@@ -6,10 +6,10 @@
 import torch
 import torch.nn as nn
 
-from ...models.builder import LOSSES
+#from ...models.builder import LOSSES
 
 
-@LOSSES.register_module()
+#@LOSSES.register_module()
 class GradientLoss(nn.Module):
     """GradientLoss.
 

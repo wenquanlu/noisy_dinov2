@@ -12,7 +12,8 @@ import torch
 from .backbones import _make_dinov2_model
 from .depth import BNHead, DepthEncoderDecoder, DPTHead
 from .utils import _DINOV2_BASE_URL, _make_dinov2_model_name, CenterPadding
-
+from dinov2.eval.depth.models.losses import GradientLoss, SigLoss, MSELoss
+import torch.nn as nn
 
 class Weights(Enum):
     NYU = "NYU"
@@ -173,7 +174,10 @@ def _make_dinov2_dpt_depth_head(*, embed_dim: int, min_depth: float, max_depth: 
         readout_type="project",
         min_depth=min_depth,
         max_depth=max_depth,
-        loss_decode=(),
+        loss_decode=nn.ModuleList([
+            SigLoss(),
+            GradientLoss()
+        ]),
     )
 
 
@@ -215,7 +219,7 @@ def _make_dinov2_dpt_depther(
         return_class_token=True,
         norm=False,
     )
-    model.backbone.register_forward_pre_hook(lambda _, x: CenterPadding(backbone.patch_size)(x[0]))
+    #model.backbone.register_forward_pre_hook(lambda _, x: CenterPadding(backbone.patch_size)(x[0]))
 
     if pretrained:
         weights_str = weights.value.lower()

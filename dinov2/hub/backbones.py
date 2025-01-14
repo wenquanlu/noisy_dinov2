@@ -18,8 +18,8 @@ class Weights(Enum):
 def _make_dinov2_model(
     *,
     arch_name: str = "vit_large",
-    img_size: int = 518,
-    patch_size: int = 14,
+    img_size: int = 224,
+    patch_size: int = 16,
     init_values: float = 1.0,
     ffn_layer: str = "mlp",
     block_chunks: int = 0,

@@ -46,7 +46,8 @@ class DepthEncoderDecoder(nn.Module):
 
     def extract_feat(self, img):
         """Extract features from images."""
-        return self.backbone(img)
+        with torch.inference_mode():
+            return self.backbone(img)
 
     def encode_decode(self, img, img_metas, rescale=True, size=None):
         """Encode images with backbone and decode into a depth estimation
@@ -300,7 +301,7 @@ class DepthEncoderDecoder(nn.Module):
 
         loss, log_vars = self._parse_losses(real_losses)
 
-        outputs = dict(loss=loss, log_vars=log_vars, num_samples=len(data_batch["img_metas"]), log_imgs=log_imgs)
+        outputs = dict(loss=loss, log_vars=log_vars)#, num_samples=len(data_batch["img_metas"]), log_imgs=log_imgs)
 
         return outputs
 

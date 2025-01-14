@@ -80,10 +80,10 @@ restart.sh
 graphs
 shot*_extra_data.pkl
 draw/inspect_pickle.py
-
-
-
-
+dinov2/nyud/predicted_depth*
+dinov2-reg
+dinov2_reg
+testrun*.pth
 
 
 

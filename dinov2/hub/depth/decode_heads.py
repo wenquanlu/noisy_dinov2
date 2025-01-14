@@ -126,7 +126,7 @@ class DepthBaseDecodeHead(nn.Module):
         depth_pred = self.forward(inputs, img_metas)
         losses = self.losses(depth_pred, depth_gt)
 
-        log_imgs = self.log_images(img[0], depth_pred[0], depth_gt[0], img_metas[0])
+        log_imgs = self.log_images(img[0], depth_pred[0], depth_gt[0])#, img_metas[0])
         losses.update(**log_imgs)
 
         return losses
@@ -194,7 +194,8 @@ class DepthBaseDecodeHead(nn.Module):
                 loss[loss_decode.loss_name] += loss_decode(depth_pred, depth_gt)
         return loss
 
-    def log_images(self, img_path, depth_pred, depth_gt, img_meta):
+    def log_images(self, img_path, depth_pred, depth_gt):#, img_meta):
+        return {}
         import numpy as np
 
         show_img = copy.deepcopy(img_path.detach().cpu().permute(1, 2, 0))
