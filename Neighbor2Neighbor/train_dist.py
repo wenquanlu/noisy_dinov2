@@ -14,6 +14,8 @@ from torch.optim import lr_scheduler
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
+import torch.distributed as dist
+from torch.utils.data.distributed import DistributedSampler
 
 from arch_unet import UNet
 
@@ -42,14 +44,14 @@ systime = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')
 operation_seed_counter = 0
 os.environ['CUDA_VISIBLE_DEVICES'] = opt.gpu_devices
 
-
-def checkpoint(net, epoch, name):
-    save_model_path = os.path.join(opt.save_model_path, opt.log_name, systime)
-    os.makedirs(save_model_path, exist_ok=True)
-    model_name = 'epoch_{}_{:03d}.pth'.format(name, epoch)
-    save_model_path = os.path.join(save_model_path, model_name)
-    torch.save(net.state_dict(), save_model_path)
-    print('Checkpoint saved to {}'.format(save_model_path))
+def distributed_checkpoint(net, epoch, name, rank, world_size):
+    if rank == 0:  # Save checkpoint only on the main process
+        save_model_path = os.path.join(opt.save_model_path, opt.log_name, systime)
+        os.makedirs(save_model_path, exist_ok=True)
+        model_name = f'epoch_{name}_{epoch:03d}.pth'
+        save_model_path = os.path.join(save_model_path, model_name)
+        torch.save(net.state_dict(), save_model_path)
+        print(f'Checkpoint saved to {save_model_path} (world size: {world_size})')
 
 
 def get_generator():
@@ -59,6 +61,12 @@ def get_generator():
     g_cuda_generator.manual_seed(operation_seed_counter)
     return g_cuda_generator
 
+def init_distributed_training():
+    # Initialize distributed training
+    dist.init_process_group(backend="nccl")
+    local_rank = int(os.environ["LOCAL_RANK"])
+    torch.cuda.set_device(local_rank)
+    return local_rank
 
 class AugmentNoise(object):
     def __init__(self, style):
@@ -327,15 +335,25 @@ def calculate_psnr(target, ref):
     psnr = 10.0 * np.log10(255.0 * 255.0 / np.mean(np.square(diff)))
     return psnr
 
+def setup_dataloader(data_dir, patch, batch_size):
+    dataset = DataLoader_Imagenet_val(data_dir, patch=patch)
+    sampler = DistributedSampler(dataset)
+    dataloader = DataLoader(
+        dataset,
+        sampler=sampler,
+        batch_size=batch_size,
+        num_workers=8,
+        pin_memory=True,
+        drop_last=True,
+    )
+    return dataloader, sampler
 
-# Training Set
-TrainingDataset = DataLoader_Imagenet_val(opt.data_dir, patch=opt.patchsize)
-TrainingLoader = DataLoader(dataset=TrainingDataset,
-                            num_workers=8,
-                            batch_size=opt.batchsize,
-                            shuffle=True,
-                            pin_memory=False,
-                            drop_last=True)
+local_rank = init_distributed_training()
+rank = dist.get_rank()
+world_size = dist.get_world_size()
+print(f"Running on rank {rank}/{world_size}, local_rank {local_rank}")
+
+TrainingLoader, train_sampler = setup_dataloader(opt.data_dir, opt.patchsize, opt.batchsize)
 
 # Validation Set
 Kodak_dir = os.path.join(opt.val_dirs, "Kodak")
@@ -354,9 +372,10 @@ noise_adder = AugmentNoise(style=opt.noisetype)
 network = UNet(in_nc=opt.n_channel,
                out_nc=opt.n_channel,
                n_feature=opt.n_feature)
-if opt.parallel:
-    network = torch.nn.DataParallel(network)
-network = network.cuda()
+# if opt.parallel:
+#     network = torch.nn.DataParallel(network)
+network = network.cuda(local_rank)
+network = torch.nn.parallel.DistributedDataParallel(network, device_ids=[local_rank])
 
 # about training scheme
 num_epoch = opt.n_epoch
@@ -372,10 +391,12 @@ scheduler = lr_scheduler.MultiStepLR(optimizer,
                                      gamma=opt.gamma)
 print("Batchsize={}, number of epoch={}".format(opt.batchsize, opt.n_epoch))
 
-checkpoint(network, 0, "model")
+if rank == 0:  # Initial checkpoint on rank 0
+    distributed_checkpoint(network, 0, "model", rank, world_size)
 print('init finish')
 
 for epoch in range(1, opt.n_epoch + 1):
+    train_sampler.set_epoch(epoch)
     cnt = 0
 
     for param_group in optimizer.param_groups:
@@ -386,7 +407,7 @@ for epoch in range(1, opt.n_epoch + 1):
     for iteration, noisy in enumerate(TrainingLoader):
         st = time.time()
         noisy = noisy / 255.0
-        noisy = noisy.cuda()
+        noisy = noisy.cuda(local_rank)
         #noisy = noise_adder.add_train_noise(clean)
 
         optimizer.zero_grad()
@@ -411,93 +432,95 @@ for epoch in range(1, opt.n_epoch + 1):
 
         loss_all.backward()
         optimizer.step()
-        print(
-            '{:04d} {:05d} Loss1={:.6f}, Lambda={}, Loss2={:.6f}, Loss_Full={:.6f}, Time={:.4f}'
-            .format(epoch, iteration, np.mean(loss1.item()), Lambda,
-                    np.mean(loss2.item()), np.mean(loss_all.item()),
-                    time.time() - st))
+        if rank == 0:
+            print(
+                '{:04d} {:05d} Loss1={:.6f}, Lambda={}, Loss2={:.6f}, Loss_Full={:.6f}, Time={:.4f}'
+                .format(epoch, iteration, np.mean(loss1.item()), Lambda,
+                        np.mean(loss2.item()), np.mean(loss_all.item()),
+                        time.time() - st))
 
     scheduler.step()
 
     if epoch % opt.n_snapshot == 0 or epoch == opt.n_epoch:
-        network.eval()
-        # save checkpoint
-        checkpoint(network, epoch, "model")
-        # validation
-        save_model_path = os.path.join(opt.save_model_path, opt.log_name,
-                                       systime)
-        validation_path = os.path.join(save_model_path, "validation")
-        os.makedirs(validation_path, exist_ok=True)
-        np.random.seed(101)
-        valid_repeat_times = {"Kodak": 10, "BSD300": 3, "Set14": 20}
+        if rank == 0:
+            network.eval()
+            # save checkpoint
+            distributed_checkpoint(network, epoch, "model", rank, world_size)
+            # validation
+            save_model_path = os.path.join(opt.save_model_path, opt.log_name,
+                                        systime)
+            validation_path = os.path.join(save_model_path, "validation")
+            os.makedirs(validation_path, exist_ok=True)
+            np.random.seed(101)
+            valid_repeat_times = {"Kodak": 10, "BSD300": 3, "Set14": 20}
 
-        for valid_name, valid_images in valid_dict.items():
-            psnr_result = []
-            ssim_result = []
-            repeat_times = valid_repeat_times[valid_name]
-            for i in range(repeat_times):
-                for idx, im in enumerate(valid_images):
-                    origin255 = im.copy()
-                    origin255 = origin255.astype(np.uint8)
-                    im = np.array(im, dtype=np.float32) / 255.0
-                    noisy_im = noise_adder.add_valid_noise(im)
-                    if epoch == opt.n_snapshot:
-                        noisy255 = noisy_im.copy()
-                        noisy255 = np.clip(noisy255 * 255.0 + 0.5, 0,
-                                           255).astype(np.uint8)
-                    # padding to square
-                    H = noisy_im.shape[0]
-                    W = noisy_im.shape[1]
-                    val_size = (max(H, W) + 31) // 32 * 32
-                    noisy_im = np.pad(
-                        noisy_im,
-                        [[0, val_size - H], [0, val_size - W], [0, 0]],
-                        'reflect')
-                    transformer = transforms.Compose([transforms.ToTensor()])
-                    noisy_im = transformer(noisy_im)
-                    noisy_im = torch.unsqueeze(noisy_im, 0)
-                    noisy_im = noisy_im.cuda()
-                    with torch.no_grad():
-                        prediction = network(noisy_im)
-                        prediction = prediction[:, :, :H, :W]
-                    prediction = prediction.permute(0, 2, 3, 1)
-                    prediction = prediction.cpu().data.clamp(0, 1).numpy()
-                    prediction = prediction.squeeze()
-                    pred255 = np.clip(prediction * 255.0 + 0.5, 0,
-                                      255).astype(np.uint8)
-                    # calculate psnr
-                    cur_psnr = calculate_psnr(origin255.astype(np.float32),
-                                              pred255.astype(np.float32))
-                    psnr_result.append(cur_psnr)
-                    cur_ssim = calculate_ssim(origin255.astype(np.float32),
-                                              pred255.astype(np.float32))
-                    ssim_result.append(cur_ssim)
+            for valid_name, valid_images in valid_dict.items():
+                psnr_result = []
+                ssim_result = []
+                repeat_times = valid_repeat_times[valid_name]
+                for i in range(repeat_times):
+                    for idx, im in enumerate(valid_images):
+                        origin255 = im.copy()
+                        origin255 = origin255.astype(np.uint8)
+                        im = np.array(im, dtype=np.float32) / 255.0
+                        noisy_im = noise_adder.add_valid_noise(im)
+                        if epoch == opt.n_snapshot:
+                            noisy255 = noisy_im.copy()
+                            noisy255 = np.clip(noisy255 * 255.0 + 0.5, 0,
+                                            255).astype(np.uint8)
+                        # padding to square
+                        H = noisy_im.shape[0]
+                        W = noisy_im.shape[1]
+                        val_size = (max(H, W) + 31) // 32 * 32
+                        noisy_im = np.pad(
+                            noisy_im,
+                            [[0, val_size - H], [0, val_size - W], [0, 0]],
+                            'reflect')
+                        transformer = transforms.Compose([transforms.ToTensor()])
+                        noisy_im = transformer(noisy_im)
+                        noisy_im = torch.unsqueeze(noisy_im, 0)
+                        noisy_im = noisy_im.cuda()
+                        with torch.no_grad():
+                            prediction = network(noisy_im)
+                            prediction = prediction[:, :, :H, :W]
+                        prediction = prediction.permute(0, 2, 3, 1)
+                        prediction = prediction.cpu().data.clamp(0, 1).numpy()
+                        prediction = prediction.squeeze()
+                        pred255 = np.clip(prediction * 255.0 + 0.5, 0,
+                                        255).astype(np.uint8)
+                        # calculate psnr
+                        cur_psnr = calculate_psnr(origin255.astype(np.float32),
+                                                pred255.astype(np.float32))
+                        psnr_result.append(cur_psnr)
+                        cur_ssim = calculate_ssim(origin255.astype(np.float32),
+                                                pred255.astype(np.float32))
+                        ssim_result.append(cur_ssim)
 
-                    # visualization
-                    if i == 0 and epoch == opt.n_snapshot and valid_name=="Kodak":
-                        save_path = os.path.join(
-                            validation_path,
-                            "{}_{:03d}-{:03d}_clean.png".format(
-                                valid_name, idx, epoch))
-                        Image.fromarray(origin255).convert('RGB').save(
-                            save_path)
-                        save_path = os.path.join(
-                            validation_path,
-                            "{}_{:03d}-{:03d}_noisy.png".format(
-                                valid_name, idx, epoch))
-                        Image.fromarray(noisy255).convert('RGB').save(
-                            save_path)
-                    if i == 0 and valid_name=="Kodak":
-                        save_path = os.path.join(
-                            validation_path,
-                            "{}_{:03d}-{:03d}_denoised.png".format(
-                                valid_name, idx, epoch))
-                        Image.fromarray(pred255).convert('RGB').save(save_path)
+                        # visualization
+                        if i == 0 and epoch == opt.n_snapshot and valid_name=="Kodak":
+                            save_path = os.path.join(
+                                validation_path,
+                                "{}_{:03d}-{:03d}_clean.png".format(
+                                    valid_name, idx, epoch))
+                            Image.fromarray(origin255).convert('RGB').save(
+                                save_path)
+                            save_path = os.path.join(
+                                validation_path,
+                                "{}_{:03d}-{:03d}_noisy.png".format(
+                                    valid_name, idx, epoch))
+                            Image.fromarray(noisy255).convert('RGB').save(
+                                save_path)
+                        if i == 0 and valid_name=="Kodak":
+                            save_path = os.path.join(
+                                validation_path,
+                                "{}_{:03d}-{:03d}_denoised.png".format(
+                                    valid_name, idx, epoch))
+                            Image.fromarray(pred255).convert('RGB').save(save_path)
 
-            psnr_result = np.array(psnr_result)
-            avg_psnr = np.mean(psnr_result)
-            avg_ssim = np.mean(ssim_result)
-            log_path = os.path.join(validation_path,
-                                    "A_log_{}.csv".format(valid_name))
-            with open(log_path, "a") as f:
-                f.writelines("{},{},{}\n".format(epoch, avg_psnr, avg_ssim))
+                psnr_result = np.array(psnr_result)
+                avg_psnr = np.mean(psnr_result)
+                avg_ssim = np.mean(ssim_result)
+                log_path = os.path.join(validation_path,
+                                        "A_log_{}.csv".format(valid_name))
+                with open(log_path, "a") as f:
+                    f.writelines("{},{},{}\n".format(epoch, avg_psnr, avg_ssim))

@@ -4,25 +4,24 @@ from PIL import Image
 import shutil
 from tqdm import tqdm
 
-def gaussian_noise(x, std, rng):
+def gaussian_noise(x, std):
     c = std/255
     x = np.array(x) / 255.
-    noisy_image = np.clip(x + rng.normal(size=x.shape, scale=c), 0, 1) * 255
+    noisy_image = np.clip(x + np.random.normal(size=x.shape, scale=c), 0, 1) * 255
     return noisy_image.astype(np.uint8)
 
-def shot_noise(x, lamb, rng):
+def shot_noise(x, lamb):
     x = np.array(x) / 255.
-    noisy_image = np.clip(rng.poisson(x * lamb)/float(lamb), 0, 1) * 255
+    noisy_image = np.clip(np.random.poisson(x * lamb)/float(lamb), 0, 1) * 255
     return noisy_image.astype(np.uint8)
 
-def speckle_noise(x, c, rng):
+def speckle_noise(x, c):
     x = np.array(x) / 255.
-    noisy_image = np.clip(x + x * rng.normal(size=x.shape, scale=c), 0, 1) * 255
+    noisy_image = np.clip(x + x * np.random.normal(size=x.shape, scale=c), 0, 1) * 255
     return noisy_image.astype(np.uint8)
 
 def add_noise_to_dataset(source_root, target_root, noise):
-    seed = 42
-    rng = np.random.default_rng(seed)
+    np.random.seed(12345)
     # Copy the directory structure
     if os.path.exists(target_root):
         shutil.rmtree(target_root)
@@ -36,7 +35,7 @@ def add_noise_to_dataset(source_root, target_root, noise):
     elif noise_type == "speckle":
         add_noise = speckle_noise
     # Loop through each set (train, test, val)
-    for set_name in ['train', 'val']:
+    for set_name in ['train', 'test', 'val']:
         set_path = os.path.join(source_root, set_name)
         # Loop through each class folder
         for class_folder in tqdm(os.listdir(set_path)):
@@ -49,7 +48,7 @@ def add_noise_to_dataset(source_root, target_root, noise):
                 
                 # Open image, add noise, and save it
                 with Image.open(image_path).convert("RGB") as img:
-                    noisy_image = add_noise(img, noise_param, rng)
+                    noisy_image = add_noise(img, noise_param)
                     Image.fromarray(noisy_image).save(target_image_path)
 
 
