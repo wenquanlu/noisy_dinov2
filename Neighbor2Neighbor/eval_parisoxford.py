@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--n_feature', type=int, default=48)
 parser.add_argument('--n_channel', type=int, default=3)
 parser.add_argument('--state_dict', type=str)
-parser.add_argument('--data_root', type=str, default="/home/abcdefghijk/Workspace/revisitop/data")
+parser.add_argument('--data_root', type=str, default="/home//Workspace/revisitop/data")
 parser.add_argument('--noise', type=str)
 parser.add_argument('--test_dataset', type=str)
 

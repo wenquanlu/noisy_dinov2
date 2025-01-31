@@ -71,8 +71,8 @@ def eval_model(depth_model, dataloader):
         out_batches.append(out)
     print("RMSE:", calculate_rmse(depth_batches, out_batches))
 
-NYUd = nyudDataset("/home/abcdefghijk/Workspace/nyuv2-python-toolkit/NYUv2", "train")
-test_set = nyudDataset("/home/abcdefghijk/Workspace/nyuv2-python-toolkit/NYUv2", "test")
+NYUd = nyudDataset("/home//Workspace/nyuv2-python-toolkit/NYUv2", "train")
+test_set = nyudDataset("/home//Workspace/nyuv2-python-toolkit/NYUv2", "test")
 
 depth_model = _make_dinov2_dpt_depther(arch_name="vit_small", pretrained=False, weights=None, depth_range=(0.7132995, 9.99547))
 
