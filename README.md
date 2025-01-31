@@ -7,7 +7,6 @@ In this work, we present a fully self-supervised framework designed to enable DI
 </figure>
 
 ## Get Started
-Please download our curated mini-imagenet using this [link](https://drive.google.com/file/d/1kUbAt-FST_ptL-i-rxN46I-8P0xCDF3g/view?usp=sharing), and put it in current folder.
 
 ### Create Noisy Dataset
 ```shell
