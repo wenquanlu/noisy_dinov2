@@ -1,9 +1,11 @@
-# From Denoised to Noisy: A Fully Self-supervised Framework for Robust Representation Learning on Noisy Image Data
+# Ditch the Denoiser: Emergence of Noise Robustness in Self-Supervised Learning from Data Curriculum
 
-In this work, we present a fully self-supervised framework designed to enable DINOv2 to learn noise-robust representations from only noisy image data. The proposed method first trains a self-supervised denoiser to bootstrap a denoised dataset from the noisy dataset. We then train DINOv2 on the denoised images, followed by resetting the training dynamics and restarting the training on the original noisy images. This curriculum approach substantially improves classification and instance recognition performance of DINOv2 compared to training solely on noisy images. Remarkably, the performance closely matches or even surpasses that of models trained exclusively on denoised images. By enabling DINOv2 to adapt independently to noise, our method introduces an effective paradigm for self-supervised learning with noisy data.
+Self-Supervised Learning (SSL) has become a powerful solution to extract rich representations from unlabeled data. Yet, SSL research is mostly focused on clean, curated and high-quality datasets. As a result, applying SSL on noisy data remains a challenge, despite being crucial to applications such as astrophysics, medical imaging, geophysics or finance. In this work, we present a fully self-supervised framework that enables noise-robust representation learning without requiring a denoiser at inference or downstream fine-tuning. Our method first trains an SSL denoiser on noisy data, then uses it to construct a denoised-to-noisy data curriculum (i.e., training first on denoised, then noisy samples) for pretraining a SSL backbone (e.g., DINOv2), combined with a teacher-guided regularization that anchors noisy embeddings to their denoised counterparts. This process encourages the model to internalize noise robustness. Notably, the denoiser can be discarded after pretraining, simplifying deployment. On ImageNet-1k with ViT-B under extreme Gaussian noise ($\sigma=255$, SNR = 0.72 dB), our method improves linear probing accuracy by 4.8\% over DINOv2, demonstrating that denoiser-free robustness can emerge from noise-aware pretraining.
 
 <figure>
-<img src="img/arch.png">
+<img src="img/noise_grid_long_figu_2.jpg">
+<!--<img src="img/noisy_framework.png">
+<img src="img/dinov2_regularization.png">-->
 </figure>
 
 ## Get Started
