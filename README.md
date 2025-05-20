@@ -16,7 +16,7 @@ First download [ImageNet-100](https://drive.google.com/file/d/1gBbVGzQxXXUe9HMCl
 python utils/generate_noise.py
 ```
 
-### Linear Probing
+### Linear Probing Evaluation
 Train Neighbor2Neighbor and Denoise
 ```shell
 mv noisy_mini-imagenet* Neighbor2Neighbor/
@@ -24,11 +24,16 @@ cd Neighbor2Neighbor
 sh linear_probe_n2n.sh
 ```
 
-Train and Evaluate DINOv2, make sure you are at outer directory
+Train and evaluate DINOv2, N2N + DINOv2, DINOv2 w/ NC, DINOv2 w/ NCT for all noise types presented, make sure you are at outer directory
 ```shell
 mv Neighbor2Neighbor/noisy_mini-imagenet* .
 python process_metadata.py
-sh linear_probe.sh
+
+# train and evaluate DINOv2, N2N + DINOv2, DINOv2 w/ NC
+sh exps/linear_probe.sh
+
+# train and evaluate DINOv2 w/ NCT (need to get denoised weights first)
+sh exps/linear_probe_nct.sh
 ```
 
 ### Instance Recognition
@@ -44,13 +49,17 @@ mv rparis* OXFORD_PARIS_DATASET_PATH/data/datasets/
 
 Evaluate DINOv2, make sure you are at outer directory
 ```shell
-python generate_instance_recog_script.py
+# this will generate instance_recog.sh
+python exps/generate_instance_recog_script.py
 sh instance_recog.sh
 ```
 ## ImageNet-1k Experiments
-We use slurm to submit ImageNet-1k jobs.
+We use slurm to submit ImageNet-1k jobs. (Upcoming)
 
 
 
 ## Comments
 Our codebase builds heavily on [DINOv2](https://github.com/facebookresearch/dinov2) and [Neighbor2Neighbor](https://github.com/TaoHuang2018/Neighbor2Neighbor).
+
+
+If you find this repo helpful, please consider giving this repo a star :star:.
