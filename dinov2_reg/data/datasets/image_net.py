@@ -161,7 +161,7 @@ class ImageNet(ExtendedVisionDataset):
         #if draw < self.curriculum[self.epoch_number]:
         image_full_path = os.path.join(self.root, image_relpath)
         #else:
-        denoised_image_full_path = os.path.join("noisy_mini-imagenet-gauss255-denoised", image_relpath)
+        denoised_image_full_path = os.path.join(f"noisy_mini-imagenet-{os.getenv('NOISE_TYPE')}-denoised", image_relpath)
         with open(image_full_path, mode="rb") as f:
             image_data = f.read()
         with open(denoised_image_full_path, mode="rb") as f_d:

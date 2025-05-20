@@ -17,6 +17,7 @@ from dinov2_reg.utils.param_groups import get_params_groups_with_decay, fuse_par
 from dinov2_reg.fsdp import get_fsdp_wrapper, ShardedGradScaler, get_fsdp_modules, reshard_fsdp_model
 
 from dinov2_reg.models.vision_transformer import BlockChunk
+import dinov2_reg.distributed as distributed
 import os
 
 try:
@@ -122,11 +123,13 @@ class SSLMetaArch(nn.Module):
         self.student = nn.ModuleDict(student_model_dict)
         self.teacher = nn.ModuleDict(teacher_model_dict)
         self.denoised_teacher = nn.ModuleDict(denoised_teacher_model_dict)
-        denoised_ckpt = torch.load(os.environ["DENOISED_CKPT"])
+        denoised_ckpt = self.load_denoised_teacher(os.environ["DENOISED_CKPT"])
         print(f"load denoised weight {os.environ['DENOISED_CKPT']}")
         self.denoised_teacher.load_state_dict(denoised_ckpt["denoised_teacher"])
         self.ibot_patch_loss_denoised.load_state_dict(denoised_ckpt["ibot_patch_loss_denoised"])
         self.dino_loss_denoised.load_state_dict(denoised_ckpt["dino_loss_denoised"])
+        self.reg_strength = float(os.environ["REG_STRENGTH"])
+        print(f"reg strength: {self.reg_strength}")
         self.denoised_teacher.half().cuda()
         self.denoised_teacher.eval()
         for param in self.denoised_teacher.parameters():
@@ -137,6 +140,34 @@ class SSLMetaArch(nn.Module):
         for p in self.teacher.parameters():
             p.requires_grad = False
         logger.info(f"Student and Teacher are built: they are both {cfg.student.arch} network.")
+
+    def load_denoised_teacher(self, weight):
+        rank = distributed.get_global_rank()
+        # Load the original state dictionary
+        state_dict = torch.load(weight + f"_{rank}.pth")['model']
+
+        # Initialize new top-level dictionaries
+        new_state_dict = {
+            "denoised_teacher": {},
+            "dino_loss_denoised": {},
+            "ibot_patch_loss_denoised": {}
+        }
+
+        #print(state_dict.keys())
+        # Split keys into respective top-level dictionaries
+        for key, value in state_dict.items():
+            if key.startswith("teacher"):
+                new_key = key.replace("teacher.", "", 1)  # Remove the prefix 'teacher.'
+                new_state_dict["denoised_teacher"][new_key] = value
+            elif key.startswith("dino_loss"):
+                new_key = key.replace("dino_loss.", "", 1)  # Remove the prefix 'dino_loss.'
+                new_state_dict["dino_loss_denoised"][new_key] = value
+            elif key.startswith("ibot_patch_loss"):
+                new_key = key.replace("ibot_patch_loss.", "", 1)  # Remove the prefix 'ibot_patch_loss.'
+                new_state_dict["ibot_patch_loss_denoised"][new_key] = value
+
+        return new_state_dict
+
 
     def forward(self, inputs):
         raise NotImplementedError
@@ -387,7 +418,7 @@ class SSLMetaArch(nn.Module):
             ) / (n_global_crops_loss_terms + n_local_crops_loss_terms)
 
             loss_dict["denoised_dino_local_loss"] = denoised_dino_local_loss
-            loss_accumulator += 0.2 * denoised_dino_local_loss
+            loss_accumulator += self.reg_strength * denoised_dino_local_loss
             
 
         # process global crops
@@ -425,7 +456,7 @@ class SSLMetaArch(nn.Module):
             loss_dict["denoised_dino_global_crops_loss"] = denoised_dino_global_crops_loss
 
             # accumulate loss
-            loss_accumulator += 0.2 * denoised_dino_global_crops_loss
+            loss_accumulator += self.reg_strength * denoised_dino_global_crops_loss
 
             student_cls_tokens = student_global_cls_tokens
 
@@ -475,7 +506,7 @@ class SSLMetaArch(nn.Module):
             loss_dict["denoised_ibot_loss"] = denoised_ibot_patch_loss / 2
 
             # accumulate loss
-            loss_accumulator += 0.2 * denoised_ibot_patch_loss
+            loss_accumulator += self.reg_strength * denoised_ibot_patch_loss
 
         self.backprop_loss(loss_accumulator)
 
