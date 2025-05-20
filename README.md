@@ -8,6 +8,9 @@ Self-Supervised Learning (SSL) has become a powerful solution to extract rich re
 <img src="img/dinov2_regularization.png">-->
 </figure>
 
+## MLP Toy Experiment on MNIST
+Please refer to [toy_exp.md](toy_mnist/toy_exp.md) for running toy experiments.
+
 
 ## ImageNet-100 Experiments
 ### Create Noisy Dataset
