@@ -8,8 +8,8 @@ Self-Supervised Learning (SSL) has become a powerful solution to extract rich re
 <img src="img/dinov2_regularization.png">-->
 </figure>
 
-## Get Started
 
+## ImageNet-100 Experiments
 ### Create Noisy Dataset
 First download [ImageNet-100](https://drive.google.com/file/d/1gBbVGzQxXXUe9HMClEdvCmIEPPj1Y8i1/view?usp=sharing) (100 classes: 50k training, 5k validation)
 ```shell
@@ -47,5 +47,10 @@ Evaluate DINOv2, make sure you are at outer directory
 python generate_instance_recog_script.py
 sh instance_recog.sh
 ```
+## ImageNet-1k Experiments
+We use slurm to submit ImageNet-1k jobs.
+
+
+
 ## Comments
 Our codebase builds heavily on [DINOv2](https://github.com/facebookresearch/dinov2) and [Neighbor2Neighbor](https://github.com/TaoHuang2018/Neighbor2Neighbor).
