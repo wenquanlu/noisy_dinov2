@@ -11,6 +11,7 @@ Self-Supervised Learning (SSL) has become a powerful solution to extract rich re
 ## Get Started
 
 ### Create Noisy Dataset
+First download [ImageNet-100](https://drive.google.com/file/d/1gBbVGzQxXXUe9HMClEdvCmIEPPj1Y8i1/view?usp=sharing) (100 classes: 50k training, 5k validation)
 ```shell
 python utils/generate_noise.py
 ```
