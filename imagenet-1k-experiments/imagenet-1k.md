@@ -25,6 +25,8 @@ python utils/generate_noise_multi.py
 ### Train Neighbor2Neighbor Denoiser
 For efficiency, we use a 100k subset of ImageNet-1k to train Neighbor2Neighbor
 ```shell
+cd Neighbor2Neighbor
+
 python dataset_tool_subset.py --input_dir=imagenet-gauss100/train/ --save_dir=imagenet_train_gauss100_subset
 
 python dataset_tool_subset.py --input_dir=imagenet-gauss255/train/ --save_dir=imagenet_train_gauss255_subset
@@ -45,6 +47,8 @@ In addition, we also provide our pretrained Neighbor2Neighbor weights:
 
 
 ### Train DINOv2 and Linear Evaluation
+
+Move the denoised datasets to imagenet-1k-experiments/, and run
 
 ```shell
 # dinov2 (gauss100)
