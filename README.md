@@ -20,7 +20,7 @@ We provide DINOv2 weights for our ImageNet-1k experiments (100 epochs, batch siz
 | DINOv2 w/ NC       | [Download](https://drive.google.com/file/d/179KTo_f7mb7-d5pMPKp8WgLOk2zj7gdw/view?usp=sharing)                  | [Download](https://drive.google.com/file/d/1hSad3Hiuz3pqCn6T3zV1PodrJNtpVwNY/view?usp=sharing)                  |
 | DINOv2 w/ NCT      | [Download](https://drive.google.com/file/d/1lloJAXgHZXYcND0-GqLTRIVN3GZLwgjP/view?usp=sharing)                  | [Download](https://drive.google.com/file/d/1fq_FkK2Te_yxvt7ZSCPgRl94GhdZMX_A/view?usp=sharing)                  |
 
-To evaluate DINOv2, DINOv2 w/ NC or DINOv2 w/ NCT on noisy validation set, first follow [imagenet-1k.md](imagenet-1k-experiments/imagenet-1k.md) to add noise, then run
+To evaluate DINOv2, DINOv2 w/ NC or DINOv2 w/ NCT on noisy validation set, first follow [imagenet-1k-experiments/imagenet-1k.md](imagenet-1k-experiments/imagenet-1k.md) to add noise, then run
 ```shell
 cd imagenet-1k-experiments
 
