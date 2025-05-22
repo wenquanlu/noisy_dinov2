@@ -39,14 +39,14 @@ PYTHONPATH="PATH_TO_imagenet-1k-experiments" python dinov2/run/eval/linear.py \
 ```
 
 ## MLP Toy Experiment on MNIST
-Please refer to [toy_exp.md](toy_mnist/toy_exp.md) for running toy experiments.
+Please refer to [toy_exp.md](toy_mnist/README.md) for running toy experiments.
 
 
 ## ImageNet-100 Experiments
-Please refer to [imagenet-100.md](imagenet-100-experiments/imagenet-100.md) for running ImageNet-100 experiments.
+Please refer to [imagenet-100.md](imagenet-100-experiments/README.md) for running ImageNet-100 experiments.
 
 ## ImageNet-1k Experiments
-Please refer to [imagenet-1k.md](imagenet-1k-experiments/imagenet-1k.md) for running ImageNet-1k experiments.
+Please refer to [imagenet-1k.md](imagenet-1k-experiments/README.md) for running ImageNet-1k experiments.
 
 
 ## Acknowledgement
