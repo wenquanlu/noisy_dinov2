@@ -10,6 +10,8 @@ Self-Supervised Learning (SSL) has become a powerful solution to extract rich re
 </figure>
 
 ## Get Started
+Please follow [DINOv2](https://github.com/facebookresearch/dinov2) and [Neighbor2Neighbor](https://github.com/TaoHuang2018/Neighbor2Neighbor) to install all required packages and environments, which should be sufficient. We also provide our custom configurations in [conda-custom.yaml](conda-custom.yaml) and [n2n-conda-custom.yaml](imagenet-100-experiments/Neighbor2Neighbor/conda-custom.yaml).
+
 We provide DINOv2 weights for our ImageNet-1k experiments (100 epochs, batch size 512)
 | Model              | Gauss100                                         | Gauss255                                         |
 |--------------------|--------------------------------------------------|--------------------------------------------------|
