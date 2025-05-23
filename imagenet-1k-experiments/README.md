@@ -21,6 +21,14 @@ Then run the command below. The command uses multiple threads to speed up the no
 ```shell
 python utils/generate_noise_multi.py
 ```
+For each dataset, run following python commands to generate metadata files:
+```python
+from dinov2.data.datasets import ImageNet
+
+for split in ImageNet.Split:
+    dataset = ImageNet(split=split, root="<DATASET_ROOT>", extra="<DATASET_ROOT>-extra")
+    dataset.dump_extra()
+```
 
 ### Train Neighbor2Neighbor Denoiser
 For efficiency, we use a 100k subset of ImageNet-1k to train Neighbor2Neighbor

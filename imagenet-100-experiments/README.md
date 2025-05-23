@@ -8,6 +8,14 @@ First download [ImageNet-100](https://drive.google.com/file/d/1gBbVGzQxXXUe9HMCl
 ```shell
 python utils/generate_noise.py
 ```
+For each dataset, run following python commands to generate metadata files:
+```python
+from dinov2.data.datasets import ImageNet
+
+for split in ImageNet.Split:
+    dataset = ImageNet(split=split, root="<DATASET_ROOT>", extra="<DATASET_ROOT>-extra")
+    dataset.dump_extra()
+```
 
 ### Linear Probing Evaluation
 Train Neighbor2Neighbor and Denoise
