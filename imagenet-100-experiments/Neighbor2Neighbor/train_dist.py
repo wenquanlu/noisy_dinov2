@@ -361,7 +361,6 @@ BSD300_dir = os.path.join(opt.val_dirs, "BSD300")
 Set14_dir = os.path.join(opt.val_dirs, "Set14")
 valid_dict = {
     "Kodak": validation_kodak(Kodak_dir),
-    "BSD300": validation_bsd300(BSD300_dir),
     "Set14": validation_Set14(Set14_dir)
 }
 
