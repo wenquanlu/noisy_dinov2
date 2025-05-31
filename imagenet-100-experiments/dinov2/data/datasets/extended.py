@@ -22,7 +22,7 @@ class ExtendedVisionDataset(VisionDataset):
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
         try:
-            image_data = self.get_image_data(index)
+            image_data, is_noisy = self.get_image_data(index)
             image = ImageDataDecoder(image_data).decode()
         except Exception as e:
             raise RuntimeError(f"can not read image for sample {index}") from e
@@ -30,8 +30,10 @@ class ExtendedVisionDataset(VisionDataset):
         target = TargetDecoder(target).decode()
 
         if self.transforms is not None:
-            image, target = self.transforms(image, target)
-
+            if getattr(self.transform, "mix_train_single_noise", False) or getattr(self.transform, "mix_train_double_noise", False):
+                image, target = self.transforms((image, is_noisy), target)
+            else:
+                image, target = self.transforms(image, target)
         return image, target
 
     def __len__(self) -> int:

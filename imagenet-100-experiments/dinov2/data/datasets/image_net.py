@@ -26,9 +26,9 @@ class _Split(Enum):
     @property
     def length(self) -> int:
         split_lengths = {
-            _Split.TRAIN: 50000,
-            _Split.VAL: 50_00,
-            _Split.TEST: 100_00,
+            _Split.TRAIN: 5000,
+            _Split.VAL: 500,
+            _Split.TEST: 0,
         }
         return split_lengths[self]
 
@@ -39,9 +39,10 @@ class _Split(Enum):
         dirname = self.get_dirname(class_id)
         if self == _Split.TRAIN:
             basename = f"{class_id}_{actual_index}"
+            return os.path.join(dirname, basename + self.img_format)
         else:  # self in (_Split.VAL, _Split.TEST):
             basename = f"ILSVRC2012_{self.value}_{actual_index:08d}"
-        return os.path.join(dirname, basename + self.img_format)
+            return os.path.join(dirname, basename + '.JPEG')
 
     def parse_image_relpath(self, image_relpath: str) -> Tuple[str, int]:
         assert self != _Split.TEST
@@ -181,7 +182,7 @@ class ImageNet(ExtendedVisionDataset):
         #    image_full_path = os.path.join("noisy_mini-imagenet-gauss100-denoised", image_relpath)
         with open(image_full_path, mode="rb") as f:
             image_data = f.read()
-        return image_data
+        return image_data, entries[index]['is_noisy']
 
     def get_target(self, index: int) -> Optional[Target]:
         entries = self._get_entries()
@@ -252,6 +253,7 @@ class ImageNet(ExtendedVisionDataset):
                 ("class_index", "<u4"),
                 ("class_id", f"U{max_class_id_length}"),
                 ("class_name", f"U{max_class_name_length}"),
+                ("is_noisy", "bool")
             ]
         )
         entries_array = np.empty(sample_count, dtype=dtype)
@@ -267,10 +269,20 @@ class ImageNet(ExtendedVisionDataset):
                 actual_index = index + 1
                 class_index = np.uint32(-1)
                 class_id, class_name = "", ""
-                entries_array[index] = (actual_index, class_index, class_id, class_name)
+                entries_array[index] = (actual_index, class_index, class_id, class_name, False)
         else:
             class_names = {class_id: class_name for class_id, class_name in labels}
-
+            
+            noisy_dict = {}
+            noisy_map = os.path.join(self.root, "noisy.txt")
+            if os.path.exists(noisy_map):
+                with open(noisy_map, "r") as f:
+                    reader = csv.reader(f)
+                    for row in reader:
+                        filename, is_noisy = row
+                        class_id, actual_index = filename.split("_")
+                        noisy_dict[(class_id, int(actual_index))] = bool(int(is_noisy))
+            #print(noisy_dict)
             assert dataset
             old_percent = -1
             for index in range(sample_count):
@@ -283,7 +295,11 @@ class ImageNet(ExtendedVisionDataset):
                 image_relpath = os.path.relpath(image_full_path, self.root)
                 class_id, actual_index = split.parse_image_relpath(image_relpath)
                 class_name = class_names[class_id]
-                entries_array[index] = (actual_index, class_index, class_id, class_name)
+                if self.split == _Split.VAL:
+                    is_noisy = False
+                else:
+                    is_noisy = noisy_dict.get((class_id, actual_index), False)
+                entries_array[index] = (actual_index, class_index, class_id, class_name, is_noisy)
 
         logger.info(f'saving entries to "{self._entries_path}"')
         self._save_extra(entries_array, self._entries_path)

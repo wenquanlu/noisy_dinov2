@@ -13,7 +13,7 @@ from fvcore.common.checkpoint import PeriodicCheckpointer
 import torch
 
 from dinov2.data import SamplerType, make_data_loader, make_dataset
-from dinov2.data import collate_data_and_cast, DataAugmentationDINO, MaskingGenerator, PairedDataAugmentationDINO
+from dinov2.data import collate_data_and_cast, collate_denoised_data_and_cast, DataAugmentationDINO, MaskingGenerator, MixedDataAugmentationDINO
 import dinov2.distributed as distributed
 from dinov2.fsdp import FSDPCheckpointer
 from dinov2.logging import MetricLogger
@@ -71,6 +71,18 @@ For python-based LazyConfig, use "path.key=value".
         type=int,
         default=3
     )    
+
+    parser.add_argument(
+        "--mix_train_single_noise", action="store_true"
+    )
+
+    parser.add_argument(
+        "--mix_train_double_noise", action="store_true"
+    )
+
+    parser.add_argument(
+        "--mix_train_std", type=float, default=0.0
+    )
 
     return parser
 
@@ -148,7 +160,7 @@ def do_test(cfg, model, iteration):
         torch.save({"teacher": new_state_dict}, teacher_ckp_path)
 
 
-def do_train(cfg, model, resume=False, max_to_keep=3, save_frequency=3):
+def do_train(cfg, model, resume=False, max_to_keep=3, save_frequency=3, mix_train_single_noise= False, mix_train_double_noise=False, mix_train_std=0.0):
     model.train()
     inputs_dtype = torch.half
     fp16_scaler = model.fp16_scaler  # for mixed precision training
@@ -195,23 +207,42 @@ def do_train(cfg, model, resume=False, max_to_keep=3, save_frequency=3):
         input_size=(img_size // patch_size, img_size // patch_size),
         max_num_patches=0.5 * img_size // patch_size * img_size // patch_size,
     )
+    if mix_train_single_noise or mix_train_double_noise:
+        data_transform = MixedDataAugmentationDINO(
+            cfg.crops.global_crops_scale,
+            cfg.crops.local_crops_scale,
+            cfg.crops.local_crops_number,
+            global_crops_size=cfg.crops.global_crops_size,
+            local_crops_size=cfg.crops.local_crops_size,
+            mix_train_single_noise = mix_train_single_noise,
+            mix_train_double_noise= mix_train_double_noise,
+            mix_train_std=mix_train_std
+        )
+        collate_fn = partial(
+            collate_denoised_data_and_cast,
+            mask_ratio_tuple=cfg.ibot.mask_ratio_min_max,
+            mask_probability=cfg.ibot.mask_sample_probability,
+            n_tokens=n_tokens,
+            mask_generator=mask_generator,
+            dtype=inputs_dtype,
+        )
+    else:
+        data_transform = DataAugmentationDINO(
+            cfg.crops.global_crops_scale,
+            cfg.crops.local_crops_scale,
+            cfg.crops.local_crops_number,
+            global_crops_size=cfg.crops.global_crops_size,
+            local_crops_size=cfg.crops.local_crops_size,
+        )
 
-    data_transform = DataAugmentationDINO(
-        cfg.crops.global_crops_scale,
-        cfg.crops.local_crops_scale,
-        cfg.crops.local_crops_number,
-        global_crops_size=cfg.crops.global_crops_size,
-        local_crops_size=cfg.crops.local_crops_size,
-    )
-
-    collate_fn = partial(
-        collate_data_and_cast,
-        mask_ratio_tuple=cfg.ibot.mask_ratio_min_max,
-        mask_probability=cfg.ibot.mask_sample_probability,
-        n_tokens=n_tokens,
-        mask_generator=mask_generator,
-        dtype=inputs_dtype,
-    )
+        collate_fn = partial(
+            collate_data_and_cast,
+            mask_ratio_tuple=cfg.ibot.mask_ratio_min_max,
+            mask_probability=cfg.ibot.mask_sample_probability,
+            n_tokens=n_tokens,
+            mask_generator=mask_generator,
+            dtype=inputs_dtype,
+        )
 
     # setup data loader
 
@@ -338,7 +369,8 @@ def main(args):
         )
         return do_test(cfg, model, f"manual_{iteration}")
 
-    do_train(cfg, model, resume=args.resume, max_to_keep=args.max_to_keep, save_frequency=args.save_frequency)
+    do_train(cfg, model, resume=args.resume, max_to_keep=args.max_to_keep, save_frequency=args.save_frequency, 
+             mix_train_single_noise=args.mix_train_single_noise, mix_train_double_noise=args.mix_train_double_noise, mix_train_std=args.mix_train_std)
 
 
 if __name__ == "__main__":

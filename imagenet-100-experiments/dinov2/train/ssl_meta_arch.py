@@ -136,6 +136,8 @@ class SSLMetaArch(nn.Module):
 
         global_crops = images["collated_global_crops"].cuda(non_blocking=True)
         local_crops = images["collated_local_crops"].cuda(non_blocking=True)
+        if "collated_global_crops_denoised" in images:
+            denoised_global_crops = images["collated_global_crops_denoised"].cuda(non_blocking=True)
 
         masks = images["collated_masks"].cuda(non_blocking=True)
         mask_indices_list = images["mask_indices_list"].cuda(non_blocking=True)
@@ -156,7 +158,10 @@ class SSLMetaArch(nn.Module):
         # teacher output
         @torch.no_grad()
         def get_teacher_output():
-            x, n_global_crops_teacher = global_crops, n_global_crops
+            if "collated_global_crops_denoised" in images:
+                x, n_global_crops_teacher = denoised_global_crops, n_global_crops
+            else:
+                x, n_global_crops_teacher = global_crops, n_global_crops
             teacher_backbone_output_dict = self.teacher.backbone(x, is_training=True)
             teacher_cls_tokens = teacher_backbone_output_dict["x_norm_clstoken"]
             teacher_cls_tokens = teacher_cls_tokens.chunk(n_global_crops_teacher)
