@@ -173,7 +173,8 @@ class MixedDataAugmentationDINO(object):
         local_crops_size=96,
         mix_train_single_noise=False,
         mix_train_double_noise=False,
-        mix_train_std=0.0
+        mix_train_std=0.0,
+        only_global=False
     ):
         self.global_crops_scale = global_crops_scale
         self.local_crops_scale = local_crops_scale
@@ -183,6 +184,7 @@ class MixedDataAugmentationDINO(object):
         self.mix_train_single_noise = mix_train_single_noise
         self.mix_train_double_noise = mix_train_double_noise
         self.mix_train_std = mix_train_std
+        self.only_global = only_global
 
         logger.info("###################################")
         logger.info("Using data augmentation parameters:")
@@ -337,9 +339,14 @@ class MixedDataAugmentationDINO(object):
         #output["global_crops_teacher_denoised"] = [global_crop_1_d, global_crop_2_d]
 
         # Local crops remain unchanged:
-        local_crops = [
-            self.local_transfo(self.geometric_augmentation_local(image)) for _ in range(self.local_crops_number)
-        ]
+        if not self.only_global:
+            local_crops = [
+                self.local_transfo(self.geometric_augmentation_local(image)) for _ in range(self.local_crops_number)
+            ]
+        else:
+            local_crops = [
+                self.local_transfo(self.geometric_augmentation_local(image_d)) for _ in range(self.local_crops_number)
+            ]
         output["local_crops"] = local_crops
         output["offsets"] = ()
 

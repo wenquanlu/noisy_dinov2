@@ -84,6 +84,10 @@ For python-based LazyConfig, use "path.key=value".
         "--mix_train_std", type=float, default=0.0
     )
 
+    parser.add_argument(
+        "--only_global", action="store_true"
+    )
+
     return parser
 
 
@@ -160,7 +164,7 @@ def do_test(cfg, model, iteration):
         torch.save({"teacher": new_state_dict}, teacher_ckp_path)
 
 
-def do_train(cfg, model, resume=False, max_to_keep=3, save_frequency=3, mix_train_single_noise= False, mix_train_double_noise=False, mix_train_std=0.0):
+def do_train(cfg, model, resume=False, max_to_keep=3, save_frequency=3, mix_train_single_noise= False, mix_train_double_noise=False, mix_train_std=0.0, only_global=False):
     model.train()
     inputs_dtype = torch.half
     fp16_scaler = model.fp16_scaler  # for mixed precision training
@@ -216,7 +220,8 @@ def do_train(cfg, model, resume=False, max_to_keep=3, save_frequency=3, mix_trai
             local_crops_size=cfg.crops.local_crops_size,
             mix_train_single_noise = mix_train_single_noise,
             mix_train_double_noise= mix_train_double_noise,
-            mix_train_std=mix_train_std
+            mix_train_std=mix_train_std,
+            only_global = only_global
         )
         collate_fn = partial(
             collate_denoised_data_and_cast,
@@ -370,7 +375,7 @@ def main(args):
         return do_test(cfg, model, f"manual_{iteration}")
 
     do_train(cfg, model, resume=args.resume, max_to_keep=args.max_to_keep, save_frequency=args.save_frequency, 
-             mix_train_single_noise=args.mix_train_single_noise, mix_train_double_noise=args.mix_train_double_noise, mix_train_std=args.mix_train_std)
+             mix_train_single_noise=args.mix_train_single_noise, mix_train_double_noise=args.mix_train_double_noise, mix_train_std=args.mix_train_std, only_global=args.only_global)
 
 
 if __name__ == "__main__":
